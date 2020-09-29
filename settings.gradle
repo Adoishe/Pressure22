@@ -1,0 +1,6 @@
+rootProject.name='Pressure'
+include ':mobile'
+include ':wear'
+include ':adoishelib'
+include ':adoishecommon'
+enableFeaturePreview('GRADLE_METADATA')
