@@ -19,8 +19,13 @@ import java.util.*
 import kotlin.math.round
 import com.adoishe.adoishelib.Tools
 import com.adoishe.adoishelib.PressureService
+import kotlinx.coroutines.*
+//import kotlinx.coroutines.DefaultExecutor.isActive
+import kotlinx.coroutines.NonCancellable.isActive
+import java.lang.System.currentTimeMillis
 
- class MainActivity(private var databaseHelper: DatabaseHelper? = null) : WearableActivity() {
+
+class MainActivity(private var databaseHelper: DatabaseHelper? = null) : WearableActivity() {
 
      val z_baro_top     : Double     = 1050.0
      val z_baro_bottom  : Double     = 950.0
@@ -29,6 +34,12 @@ import com.adoishe.adoishelib.PressureService
 
      val tools              = Tools()
      val pressureService    = PressureService()
+
+    val job = SupervisorJob()
+    var jobPressure: Job? = null
+
+    val scope = CoroutineScope(Dispatchers.Default + job)
+//    var getDataCoroutine =
 
      fun showStatus(message : String){
 
@@ -76,45 +87,95 @@ import com.adoishe.adoishelib.PressureService
 */
     }
 
-    public fun act (View: View){
+//    suspend fun doWork(): Deferred<Unit> = coroutineScope {     // (1)
+//        async {  }
+//    }
+//
+//    fun getData() = scope.launch {                       // (2)
+//        try {
+//            doWork().await()
+//        } catch (e: Exception) {  }
+//    }
 
-        val i  = Intent(this, pressureService::class.java)
-
-        if (View.getId() == R.id.start) {
-            startService(i)
-
-           // showStatus("Started!")
+//    private fun getPressure(minutes : Int) : Deferred<Unit> = scope.async{
+//
+//        val uiInfo  = Runnable {showStatus(minutes.toString())}
+//
+//        runOnUiThread(uiInfo)
+//
+//    }
+        fun stopJobPressure()  = runBlocking {
+            jobPressure?.cancelAndJoin()
         }
 
-        else if (View.getId() == R.id.count) {
+    fun act (View: View){
 
-            databaseHelper  = DatabaseHelper(this)
+//        val i  = Intent(this, pressureService::class.java)
 
-            showStatus("Количество записей = " + databaseHelper!!.countPressuresList!!.toString())
+        when (View.id) {
 
-        }
-        else if(View.getId() == R.id.forecast) {
+            R.id.start -> {
 
-            showStatus(tools.getCurrentForecast(this , editTemperature.text.toString()))
+                //            startService(i)
+                //            getPressure(5).start()
+                val startTime   = currentTimeMillis()
+                    jobPressure = scope.launch{
 
-        }
-        else if (View.getId() == R.id.stop) {
+                        var nextPrintTime   = startTime
+                        var i               = 0
+                        val pressureIntent  = Intent(baseContext, pressureService::class.java)
+                        val timerTime       = (PressureService().oneHourMS / 60) * 1
 
-            stopService(i)
-            showStatus("Stopped!")
+                        while (isActive) { // cancellable computation loop
+                            // print a message twice a second
+                            if (System.currentTimeMillis() >= nextPrintTime) {
 
-        }
-        else if (View.getId() == R.id.truncate) {
+                                showStatus("job: I'm getting pressure ${i++} ...")
 
-            truncate(View)
-            showStatus("Stopped!")
+                                baseContext.startService(pressureIntent)
 
-        }
+//                                delay(1L)
 
-        else {
-            showStatus("Нипанятна!!!!")
+                                baseContext.stopService(pressureIntent)
+
+                                nextPrintTime += (timerTime / 2)
+                            }
+                    }
+                }
+
+                showStatus("Started!")
+            }
+            R.id.count -> {
+
+                databaseHelper  = DatabaseHelper(this)
+
+                showStatus("Количество записей = " + databaseHelper!!.countPressuresList!!.toString())
+
+            }
+            R.id.forecast -> {
+
+                showStatus(tools.getCurrentForecast(this , editTemperature.text.toString()))
+
+            }
+            R.id.stop -> {
+
+                //            stopService(i)
+                stopJobPressure()
+                showStatus("Stopped!")
+
+            }
+            R.id.truncate -> {
+
+                truncate(View)
+                showStatus("truncate!")
+
+            }
+            else -> {
+                showStatus("Нипанятна!!!!")
+            }
         }
     }
+
 
     public fun truncate (View : View) {
 
