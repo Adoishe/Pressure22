@@ -17,6 +17,7 @@ import android.util.Log
 import android.widget.Toast
 //import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 import com.adoishe.adoishelib.PressureService
+import kotlinx.coroutines.*
 import java.lang.Boolean
 import java.text.SimpleDateFormat
 import java.util.*
@@ -51,19 +52,19 @@ class PressureService : SensorEventListener, Service() {
 
 
     ////////////////////////////////////////////////
-     fun  regTask  (): () -> Unit  =  {
-
-        timeReg             = System.currentTimeMillis()
-        timeBetween        = (timeReg - timeUnreg)
-
-        Log.d("_______________", "TimerTask registerListenertimeBetween = " + (timeBetween/1000).toString())
-
-        previousPeriodMs   = currentPeriodMillis
-        regged             = sensorManager.registerListener(
-            this@PressureService,
-            defPressureSensor,
-            SensorManager.SENSOR_DELAY_UI)
-    }
+//     fun  regTask  (): () -> Unit  =  {
+//
+//        timeReg             = System.currentTimeMillis()
+//        timeBetween        = (timeReg - timeUnreg)
+//
+//        Log.d("_______________", "TimerTask registerListenertimeBetween = " + (timeBetween/1000).toString())
+//
+//        previousPeriodMs   = currentPeriodMillis
+//        regged             = sensorManager.registerListener(
+//            this@PressureService,
+//            defPressureSensor,
+//            SensorManager.SENSOR_DELAY_UI)
+//    }
 
 
     //////////////////////////////////////////
@@ -113,6 +114,12 @@ class PressureService : SensorEventListener, Service() {
                 var regged              : kotlin.Boolean    = false
     private     var databaseHelper      : DatabaseHelper?   = null
                 var sensorInitialized   : kotlin.Boolean    = false
+
+    val job                 = SupervisorJob()
+    var jobPressure: Job?   = null
+    private val scope               = CoroutineScope(Dispatchers.Default + job)
+    private var isPaused    = false
+
 //    lateinit    var mainHandler         : Handler
 
 //    private val regPressTask = object : Runnable {
@@ -146,6 +153,9 @@ class PressureService : SensorEventListener, Service() {
       databaseHelper      = DatabaseHelper(this)
       // Получаем атмосферное давление в миллибарах
       databaseHelper!!.addPressure(pressure)
+
+      Log.d("PressureService", "`SENSOR_SERVICE` $pressure!")
+      isPaused = true
  }
 
  override  fun onCreate() {
@@ -153,7 +163,7 @@ class PressureService : SensorEventListener, Service() {
    try {
      sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
-     Log.d("onCreateService", "`SENSOR_SERVICE` Successfully!")
+     Log.d("PressureService", "`SENSOR_SERVICE` Successfully!")
      Toast.makeText(this, "SENSOR_SERVICE Successfully!", Toast.LENGTH_SHORT).show()
 
      if (sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE) != null) {
@@ -163,137 +173,145 @@ class PressureService : SensorEventListener, Service() {
      }
      else{
        // defPressureSensor = sensorManager.
-       Log.d("onCreateService", "нет барометра в девайсе!")
+       Log.d("PressureService", "нет барометра в девайсе!")
        Toast.makeText(this, "нет барометра в девайсе!", Toast.LENGTH_SHORT).show()
      }
 
      Toast.makeText(this, "sensorManager Successfully!", Toast.LENGTH_SHORT).show()
 
-     Log.d("onCreateService", "sensorManager Successfully!")
+     Log.d("PressureService", "sensorManager Successfully!")
 
 //       mainHandler = Handler(Looper.getMainLooper())
 
    }catch (e: Throwable)
    {
-     Log.d("onCreateService", "onCreate failed!")
+     Log.d("PressureService", "onCreate failed!")
      Toast.makeText(this, "onCreate failed!", Toast.LENGTH_SHORT).show()
    }
  }
 
-  fun onResume() {
-//    super.onResume()
-    sensorManager.registerListener(this, defPressureSensor, SensorManager.SENSOR_DELAY_UI)
-    Toast.makeText(this, "Начал слушать Successfully!", Toast.LENGTH_SHORT).show()
-//      mainHandler.post(regPressTask)
-//      mainHandler.post(unregTask)
- }
+//  fun onResume() {
+////    super.onResume()
+////    sensorManager.registerListener(this, defPressureSensor, SensorManager.SENSOR_DELAY_UI)
+//
+//      Log.d("PressureService" , "Начал слушать Successfully!")
+//
+//    isPaused = false
+//
+//
+//
+////    Toast.makeText(this, "Начал слушать Successfully!", Toast.LENGTH_SHORT).show()
+////      mainHandler.post(regPressTask)
+////      mainHandler.post(unregTask)
+// }
+//
+    private fun stopJobPressure()  = runBlocking {
 
-  fun onPause() {
-//    super.onPause()
-    sensorManager.unregisterListener(this, defPressureSensor)
-
-//      mainHandler.removeCallbacks(regPressTask)
-//      mainHandler.removeCallbacks(unregTask)
-
-      Toast.makeText(this, "пауза слушать Successfully!", Toast.LENGTH_SHORT).show()
- }
+        jobPressure?.cancelAndJoin()
+    }
+//
+//  fun onPause() {
+////    super.onPause()
+////    sensorManager.unregisterListener(this, defPressureSensor)
+//
+//      isPaused = true
+//
+////      mainHandler.removeCallbacks(regPressTask)
+////      mainHandler.removeCallbacks(unregTask)
+//      Log.d("PressureService" , "пауза слушать Successfully!")
+////      Toast.makeText(this, "пауза слушать Successfully!", Toast.LENGTH_SHORT).show()
+// }
 
  override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
 
-     var tools = Tools()
-     var diffMs: Long
-     var itsTimeToRecord: kotlin.Boolean
-     var timeReg: Long = System.currentTimeMillis()
-     var timeUnreg: Long = System.currentTimeMillis()
-     var timeBetween: Long
+//     var tools = Tools()
+//     var diffMs: Long
+//     var itsTimeToRecord: kotlin.Boolean
+//     var timeReg: Long = System.currentTimeMillis()
+//     var timeUnreg: Long = System.currentTimeMillis()
+//     var timeBetween: Long
 
 
 
       if (sensorInitialized){
              try {
 
+                 val startTime       = System.currentTimeMillis()
+                 jobPressure         = scope.launch{
+
+                     var nextPrintTime   = startTime
+                     var i               = 0
+//                     val pressureIntent  = Intent(baseContext, pressureService::class.java)
+                     val timerTime       = (PressureService().oneHourMS / 60) * 1
+
+                     while (isActive) { // cancellable computation loop
+                         // print a message twice a second
+
+                         var itsTimeToMeasure = (System.currentTimeMillis() >= nextPrintTime)
+
+                         when(isPaused){
+
+                             true ->{
+
+                                 isPaused = !(itsTimeToMeasure)
+
+                                 if (regged){
+
+                                 Log.d("PressureService" , "job: I'm pausing pressure...")
+
+                                     sensorManager.unregisterListener(this@PressureService, defPressureSensor)
+
+                                     regged = false
 
 
 
-/*
-                 var time4Timer = (oneHourMS / 60)
 
-                 val timerReg = timer("reg", false , 500 , time4Timer  )
-                 {
-                     object : TimerTask() {
-                         override fun run() {
-                             Toast.makeText(this@PressureService, "timerReg fire!", Toast.LENGTH_SHORT).show()
-                            regTask()
+                                 }
+
+
+                             }
+
+                             false ->{
+
+                                 if (itsTimeToMeasure) {
+
+                                     when(regged){
+
+                                         true -> {
+
+                                             Log.d("PressureService" , "job: I'm getting pressure ${i++} ...")
+
+                                         }
+                                         false -> {
+
+                                             regged = sensorManager.registerListener(
+                                                                            this@PressureService,
+                                                                                   defPressureSensor,
+                                                                                   SensorManager.SENSOR_DELAY_UI
+                                                                                     )
+
+                                             Log.d("PressureService" , "job: I'm reggiing pressure  ...")
+
+                                         }
+                                     }
+
+                                     nextPrintTime += (timerTime / 2)
+
+                                 }
+                             }
                          }
                      }
+
+                     Log.d("PressureService" , "job: I'm stoping pressure...")
+                     sensorManager.unregisterListener(this@PressureService, defPressureSensor)
                  }
 
 
-//                     {
-//                     override fun run() {
-//                         Toast.makeText(this@PressureService, "timerUnReg fire!", Toast.LENGTH_SHORT).show()
-//                         unregTask()
-//                     }
-//                 }
-                 val timerUnReg = timer("unreg", false , 500 , time4Timer  )
-                 {
-                     object : TimerTask() {
-                         override fun run() {
-                             Toast.makeText(this@PressureService, "timerUnReg fire!", Toast.LENGTH_SHORT).show()
-                             unregTask()
-                         }
-                     }
-                 }
 
 
 
 
-                 Toast.makeText(this, "onStartCommand Succccc!", Toast.LENGTH_SHORT).show()
 
- */
-
-
-                                 var currentPeriodMillis = System.currentTimeMillis()
-                                 var timerTime = (oneHourMS / 60) * 10
-
-                                 // reg
-//                            timerReg.schedule(
-//                                     object : TimerTask() {
-//
-//                                         override fun run() {
-
-//                                             timeReg        = System.currentTimeMillis()
-//                                             timeBetween    = (timeReg - timeUnreg)
-
-//                                              Log.d("_______________", "registerListener" )
-
-//                                             previousPeriodMs   = currentPeriodMillis
-                                             regged             = sensorManager.registerListener(
-                                                                                     this@PressureService,
-                                                                                     defPressureSensor,
-                                                                                     SensorManager.SENSOR_DELAY_UI
-                                                                                 )
-//                                         }
-//                                     }
-//                                     , 1
-//                                     , timerTime
-//                                 )
-                                 // UNreg
-//                 timerReg.schedule(
-//                                     object : TimerTask() {
-//                                         override fun run() {
-//
-//                                             timeUnreg      = System.currentTimeMillis()
-//                                             timeBetween    = (timeUnreg - timeReg)
-//
-//                                             Log.d("^^^^^^^^^^^^^", "TimerTask unregisterListener timeBetween = " + (timeBetween/1000).toString())
-//                                             sensorManager.unregisterListener(this@PressureService, defPressureSensor)
-//
-//                                         }
-//                                     }
-//                                     , 250
-//                                     , timerTime
-//                                 )
                  return START_STICKY
 
              } catch (e: Throwable) {
@@ -310,11 +328,10 @@ class PressureService : SensorEventListener, Service() {
 
  override fun onDestroy() {
 
-//    timerReg.cancel();
-//    timerReg.purge();
-//    timerUnReg.cancel();
-//    timerUnReg.purge();
 
+     stopJobPressure()
+
+     sensorManager.unregisterListener(this@PressureService, defPressureSensor)
 
      Log.d("PressureService", "onDestroy")
  }
@@ -438,53 +455,50 @@ public  class Tools
 
     fun getCurrentForecast(activity : Activity, temperature : String) : String {
 
-      val pressureTrend         : Int
-      val pressureTrendText    : String
-      val forecast               : String
-      val contentValues          = ContentValues()
-      val windDirTextUk       : Array<String> = activity.getResources().getStringArray(R.array.wind_dir_text_uk)
-      val absPressure           : Double = getPressure(0, activity)
-      val absPressure1h        : Double = getPressure(-1, activity)
+        val calendar = Calendar.getInstance()
+        val pressureTrend         : Int
+        val pressureTrendText    : String
+        val forecast               : String
+        val contentValues          = ContentValues()
+        val windDirTextUk       : Array<String> = activity.resources.getStringArray(R.array.wind_dir_text_uk)
+        val absPressure           : Double = getPressure(0, activity)
+        val absPressure1h        : Double = getPressure(-1, activity)
 
-      if ( absPressure > absPressure1h + 0.25)
-      {
-        pressureTrend = 1;
-        pressureTrendText = "Рост";
-      }
-      else if ( absPressure1h > absPressure + 0.25)
-      {
-        pressureTrend = 2;
-        pressureTrendText = "Падение";
-      }
-      else
-      {
-        pressureTrend = 0;
-        pressureTrendText = "Не меняется";
-      }
+        if ( absPressure > absPressure1h + 0.25)
+        {
+            pressureTrend = 1;
+            pressureTrendText = "Рост";
+        }
+        else if ( absPressure1h > absPressure + 0.25)
+        {
+            pressureTrend = 2;
+            pressureTrendText = "Падение";
+        }
+        else
+        {
+            pressureTrend = 0;
+            pressureTrendText = "Не меняется";
+        }
 
-      val date    : Date = Date()
-
-      contentValues.put("z_hpa"          , absPressure)
-      contentValues.put("z_month"        , date.getMonth())
-      // todo Где-то взять направление ветра
-      contentValues.put("z_wind"         , windDirTextUk[16])
-      contentValues.put("z_trend"        , pressureTrend)
-      contentValues.put("z_where"        ,   1)
-      contentValues.put("z_baro_top"     , 1050)
-      contentValues.put("z_baro_bottom"  , 950)
-      // todo Где-то взять текущую температуру
-
-      var temp : String
+//        val date    : Date = Date()
+        contentValues.put("z_hpa"          , absPressure)
+        contentValues.put("z_month"        , calendar.get(Calendar.MONTH))//date.getMonth())
+        // todo Где-то взять направление ветра
+        contentValues.put("z_wind"         , windDirTextUk[16])
+        contentValues.put("z_trend"        , pressureTrend)
+        contentValues.put("z_where"        ,   1)
+        contentValues.put("z_baro_top"     , 1050)
+        contentValues.put("z_baro_bottom"  , 950)
+        // todo Где-то взять текущую температуру
 
 
+        var temp : String = if(temperature == "") "0" else temperature
 
-      if(temperature == "")  temp = "0" else temp = temperature
+        contentValues.put("wh_temp_out"    , Integer.parseInt(temp)) // editTemperature.text.toString()
 
-      contentValues.put("wh_temp_out"    , Integer.parseInt(temp)) // editTemperature.text.toString()
+        forecast = forecast(contentValues, activity)
 
-      forecast = forecast(contentValues, activity)
-
-      return forecast
+        return forecast
     }
 
     fun forecast(values: ContentValues, activity : Activity) : String{

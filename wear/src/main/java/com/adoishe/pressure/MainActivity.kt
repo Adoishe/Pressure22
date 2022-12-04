@@ -33,18 +33,24 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
      var wh_temp_out    : Double     = 20.0
 
      val tools              = Tools()
-     val pressureService    = PressureService()
+     private val pressureService    = PressureService()
+    private    var pressureIntent: Intent? = null
+//private var pressureIntent = Intent(baseContext, pressureService::class.java)
 
-    val job = SupervisorJob()
-    var jobPressure: Job? = null
+//    val job = SupervisorJob()
+//    var jobPressure: Job? = null
 
-    val scope = CoroutineScope(Dispatchers.Default + job)
+    //    val scope = CoroutineScope(Dispatchers.Default + job)
 //    var getDataCoroutine =
+    override fun onDestroy() {
+        Log.d("PressureService" , "onDestroy")
 
-     fun showStatus(message : String){
+        super.onDestroy()
+    }
 
-        val stattus = tools.getStatus(message, this)
-         this.textView_log.text = stattus
+    private fun showStatus(message : String){
+
+         this.textView_log.text = tools.getStatus(message, this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +60,7 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
         // Enables Always-on
         setAmbientEnabled()
        // showStatus("")
-
+        pressureIntent = Intent(baseContext, pressureService::class.java)
         /*
                val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
@@ -87,6 +93,18 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
 */
     }
 
+    override fun onStart() {
+        super.onStart()
+
+        Log.d("PressureService" , "onStart")
+    }
+
+    override fun onRestart() {
+
+        Log.d("PressureService" , "onRestart")
+        super.onRestart()
+    }
+
 //    suspend fun doWork(): Deferred<Unit> = coroutineScope {     // (1)
 //        async {  }
 //    }
@@ -104,9 +122,9 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
 //        runOnUiThread(uiInfo)
 //
 //    }
-        fun stopJobPressure()  = runBlocking {
-            jobPressure?.cancelAndJoin()
-        }
+//        fun stopJobPressure()  = runBlocking {
+//            press jobPressure?.cancelAndJoin()
+//        }
 
     fun act (View: View){
 
@@ -118,30 +136,34 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
 
                 //            startService(i)
                 //            getPressure(5).start()
-                val startTime       = currentTimeMillis()
-                jobPressure         = scope.launch{
 
-                    var nextPrintTime   = startTime
-                    var i               = 0
-                    val pressureIntent  = Intent(baseContext, pressureService::class.java)
-                    val timerTime       = (PressureService().oneHourMS / 60) * 1
 
-                    while (isActive) { // cancellable computation loop
-                        // print a message twice a second
-                        if (System.currentTimeMillis() >= nextPrintTime) {
+                var componentName = baseContext.startService(pressureIntent)
 
-                            showStatus("job: I'm getting pressure ${i++} ...")
-
-                            baseContext.startService(pressureIntent)
-
-    //                                delay(1L)
-
-                            baseContext.stopService(pressureIntent)
-
-                            nextPrintTime += (timerTime / 2)
-                        }
-                    }
-                }
+//                val startTime       = currentTimeMillis()
+//                jobPressure         = scope.launch{
+//
+//                    var nextPrintTime   = startTime
+//                    var i               = 0
+//                    val pressureIntent  = Intent(baseContext, pressureService::class.java)
+//                    val timerTime       = (PressureService().oneHourMS / 60) * 1
+//
+//                    while (isActive) { // cancellable computation loop
+//                        // print a message twice a second
+//                        if (System.currentTimeMillis() >= nextPrintTime) {
+//
+//                            showStatus("job: I'm getting pressure ${i++} ...")
+//
+//                            baseContext.startService(pressureIntent)
+//
+//    //                                delay(1L)
+//
+//                            baseContext.stopService(pressureIntent)
+//
+//                            nextPrintTime += (timerTime / 2)
+//                        }
+//                    }
+//                }
 
                 showStatus("Started!")
             }
@@ -159,8 +181,8 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
             }
             R.id.stop -> {
 
-                //            stopService(i)
-                stopJobPressure()
+                stopService(pressureIntent)
+//                stopJobPressure()
                 showStatus("Stopped!")
 
             }
