@@ -118,28 +118,28 @@ class MainActivity(private var databaseHelper: DatabaseHelper? = null) : Wearabl
 
                 //            startService(i)
                 //            getPressure(5).start()
-                val startTime   = currentTimeMillis()
-                    jobPressure = scope.launch{
+                val startTime       = currentTimeMillis()
+                jobPressure         = scope.launch{
 
-                        var nextPrintTime   = startTime
-                        var i               = 0
-                        val pressureIntent  = Intent(baseContext, pressureService::class.java)
-                        val timerTime       = (PressureService().oneHourMS / 60) * 1
+                    var nextPrintTime   = startTime
+                    var i               = 0
+                    val pressureIntent  = Intent(baseContext, pressureService::class.java)
+                    val timerTime       = (PressureService().oneHourMS / 60) * 1
 
-                        while (isActive) { // cancellable computation loop
-                            // print a message twice a second
-                            if (System.currentTimeMillis() >= nextPrintTime) {
+                    while (isActive) { // cancellable computation loop
+                        // print a message twice a second
+                        if (System.currentTimeMillis() >= nextPrintTime) {
 
-                                showStatus("job: I'm getting pressure ${i++} ...")
+                            showStatus("job: I'm getting pressure ${i++} ...")
 
-                                baseContext.startService(pressureIntent)
+                            baseContext.startService(pressureIntent)
 
-//                                delay(1L)
+    //                                delay(1L)
 
-                                baseContext.stopService(pressureIntent)
+                            baseContext.stopService(pressureIntent)
 
-                                nextPrintTime += (timerTime / 2)
-                            }
+                            nextPrintTime += (timerTime / 2)
+                        }
                     }
                 }
 
