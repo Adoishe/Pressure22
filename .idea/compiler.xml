@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel>
-      <module name="Pressure.adoishecommon" target="1.8" />
-      <module name="Pressure.adoishelib" target="1.8" />
-      <module name="Pressure.mobile" target="1.8" />
-      <module name="Pressure.wear" target="1.8" />
-    </bytecodeTargetLevel>
+    <bytecodeTargetLevel target="1.8" />
   </component>
 </project>

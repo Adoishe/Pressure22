@@ -27,6 +27,7 @@ import kotlin.math.round
 
 
 
+//class PressureService : SensorEventListener, Service() {
 class PressureService : SensorEventListener, Service() {
 
  private lateinit var sensorManager     : SensorManager
@@ -45,8 +46,8 @@ class PressureService : SensorEventListener, Service() {
     var timeReg: Long       = System.currentTimeMillis()
     var timeUnreg: Long     = System.currentTimeMillis()
     var timeBetween: Long   = 0L
-    var timerReg = Timer()
-    var timerUnReg = Timer()
+//    var timerReg = Timer()
+//    var timerUnReg = Timer()
 
 
     ////////////////////////////////////////////////
@@ -157,8 +158,8 @@ class PressureService : SensorEventListener, Service() {
 
      if (sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE) != null) {
 
-       defPressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
-        this.sensorInitialized = true
+         defPressureSensor      = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+         this.sensorInitialized = true
      }
      else{
        // defPressureSensor = sensorManager.
@@ -180,16 +181,16 @@ class PressureService : SensorEventListener, Service() {
  }
 
   fun onResume() {
-   // super.onResume()
-//    sensorManager.registerListener(this, defPressureSensor, SensorManager.SENSOR_DELAY_UI)
-//    Toast.makeText(this, "Начал слушать Successfully!", Toast.LENGTH_SHORT).show()
+//    super.onResume()
+    sensorManager.registerListener(this, defPressureSensor, SensorManager.SENSOR_DELAY_UI)
+    Toast.makeText(this, "Начал слушать Successfully!", Toast.LENGTH_SHORT).show()
 //      mainHandler.post(regPressTask)
 //      mainHandler.post(unregTask)
  }
 
   fun onPause() {
-   // super.onPause()
-   // sensorManager.unregisterListener(this, defPressureSensor)
+//    super.onPause()
+    sensorManager.unregisterListener(this, defPressureSensor)
 
 //      mainHandler.removeCallbacks(regPressTask)
 //      mainHandler.removeCallbacks(unregTask)
@@ -256,43 +257,43 @@ class PressureService : SensorEventListener, Service() {
                                  var timerTime = (oneHourMS / 60) * 10
 
                                  // reg
-                            timerReg.schedule(
-                                     object : TimerTask() {
+//                            timerReg.schedule(
+//                                     object : TimerTask() {
+//
+//                                         override fun run() {
 
-                                         override fun run() {
+//                                             timeReg        = System.currentTimeMillis()
+//                                             timeBetween    = (timeReg - timeUnreg)
 
-                                             timeReg        = System.currentTimeMillis()
-                                             timeBetween    = (timeReg - timeUnreg)
+//                                              Log.d("_______________", "registerListener" )
 
-                                              Log.d("_______________", "TimerTask registerListenertimeBetween = " + (timeBetween/1000).toString())
-
-                                             previousPeriodMs   = currentPeriodMillis
+//                                             previousPeriodMs   = currentPeriodMillis
                                              regged             = sensorManager.registerListener(
                                                                                      this@PressureService,
                                                                                      defPressureSensor,
                                                                                      SensorManager.SENSOR_DELAY_UI
                                                                                  )
-                                         }
-                                     }
-                                     , 1
-                                     , timerTime
-                                 )
+//                                         }
+//                                     }
+//                                     , 1
+//                                     , timerTime
+//                                 )
                                  // UNreg
-                 timerReg.schedule(
-                                     object : TimerTask() {
-                                         override fun run() {
-
-                                             timeUnreg      = System.currentTimeMillis()
-                                             timeBetween    = (timeUnreg - timeReg)
-
-                                             Log.d("^^^^^^^^^^^^^", "TimerTask unregisterListener timeBetween = " + (timeBetween/1000).toString())
-                                             sensorManager.unregisterListener(this@PressureService, defPressureSensor)
-
-                                         }
-                                     }
-                                     , 250
-                                     , timerTime
-                                 )
+//                 timerReg.schedule(
+//                                     object : TimerTask() {
+//                                         override fun run() {
+//
+//                                             timeUnreg      = System.currentTimeMillis()
+//                                             timeBetween    = (timeUnreg - timeReg)
+//
+//                                             Log.d("^^^^^^^^^^^^^", "TimerTask unregisterListener timeBetween = " + (timeBetween/1000).toString())
+//                                             sensorManager.unregisterListener(this@PressureService, defPressureSensor)
+//
+//                                         }
+//                                     }
+//                                     , 250
+//                                     , timerTime
+//                                 )
                  return START_STICKY
 
              } catch (e: Throwable) {
@@ -309,19 +310,21 @@ class PressureService : SensorEventListener, Service() {
 
  override fun onDestroy() {
 
-                                    timerReg.cancel();
-                                    timerReg.purge();
-     timerUnReg.cancel();
-     timerUnReg.purge();
+//    timerReg.cancel();
+//    timerReg.purge();
+//    timerUnReg.cancel();
+//    timerUnReg.purge();
 
 
      Log.d("PressureService", "onDestroy")
-                             }
+ }
 }
 
 public  class Tools
  {
     val pressureService    = PressureService()
+
+
 
     fun getStatus(message : String, activity : Activity) : String{
 
